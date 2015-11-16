@@ -14,3 +14,5 @@ Simulator. Contains the main method that runs the kassako program.
 
 Build with: make
 run with: java Simulator
+
+# inlupp 4: (mån 16 nov 2015)26b328a
