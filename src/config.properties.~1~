@@ -1,0 +1,6 @@
+numberOfRegisters=18
+intensity = 100
+maxqueuelength=10
+thresholdForNewRegister=5
+maxGroceries=25
+time=1000

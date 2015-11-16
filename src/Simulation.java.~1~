@@ -1,0 +1,148 @@
+import java.util.ArrayList;
+import java.util.concurrent.ThreadLocalRandom;
+/*
+ * @author Anders Ålander
+ * Creates a simulation of a store with given parameters.
+ */
+public class Simulation {
+	/* The store to be simulated */
+	private Store s;
+	/* The amount of time so far passed in the simulation */
+	private int time = 0;
+	/* The chance in percent that a new customer will spawn per time step in the simulation */
+	private int intensity = 0;
+	/* The maximum number of groceries a customer can have. */
+	private int maxGroceries = 0;
+	/* The average queue length threshold for when a new register will be opened */
+	private int thresholdForNewRegister = 0;
+	/* All done customers so far */
+	private ArrayList<Customer> doneCustomers = new ArrayList<Customer>();
+
+/*
+ * Creates a Store object from parameters read from config.propertis
+ * if such a file is found. Otherwise default values are chosen.
+ * Also sets how long to simulate for.
+ */
+	public Simulation(int numberOfRegisters, int intensity, int maxGroceries, int thresholdForNewRegister){
+		this.intensity = intensity;
+		this.maxGroceries = maxGroceries;
+		this.thresholdForNewRegister = thresholdForNewRegister;
+		this.s = new Store(numberOfRegisters);
+		
+	}
+	/*
+	 * A time step happens in the store that is simulated.
+	 * Spawn chance of a new customer and its groceries is rolled and if one spawns
+	 * it is sent to the store. The average queue length is measured and if it reaches
+	 * a threshold a new register is opened in the store. 
+	 */
+    public void step() {
+    	s.step();
+    	int rollNewCustomer = ThreadLocalRandom.current().nextInt(0, 100+1);
+    	int groceries;
+		if (intensity > rollNewCustomer) { 
+			groceries = ThreadLocalRandom.current().nextInt(0, maxGroceries+1);
+			s.newCustomer(groceries, time);
+		}
+    	if (thresholdForNewRegister < s.getAverageQueueLength()) s.openNewRegister();
+    	this.doneCustomers.addAll(this.s.getDoneCustomers());	//collect all done customers
+    	
+	   	this.time++;
+    }	/*
+	 * It is a help method for @link #averageWaitTime().
+	 * @return It returns the total accumulated wait time for done customers in the store so far.
+	 */
+	private int getTotalWaitTime(){
+		int m = 0;
+		for (int i = 0; i<this.doneCustomers.size();i++){
+			m +=this.doneCustomers.get(i).getWaitTime();
+		}
+		return m;
+	}
+	/*
+	 * @return It returns the average wait time of done customers in the store so far.
+	 * If no customer in the store is done so far it returns 0.
+	 */
+	public int getAverageWaitTime(){
+
+		if (this.doneCustomers.size() == 0) return 0;
+		else
+		return this.getTotalWaitTime()/this.doneCustomers.size() ;
+	}
+	/*
+	 * @return It returns the longest time any customer in the store has been waiting so far.
+	 */
+	public int getMaxWaitTime(){
+		int m = 0;
+		for (int i = 0; i < this.doneCustomers.size();i++){//max wait time from done customers
+			if (m < this.doneCustomers.get(i).getWaitTime()){
+				m = this.doneCustomers.get(i).getWaitTime();
+			}
+		}
+		for (int i = 0; i < this.s.getRegisterArray().size();i++){//max wait time from not done customers
+			for(int j = 0; j < this.s.getRegisterArray().get(i).getQueueLength();j++){
+				if (m < this.s.getRegisterArray().get(i).getCustomer(j).getWaitTime()){
+					m = this.s.getRegisterArray().get(i).getCustomer(j).getWaitTime();
+				}
+			}
+		}
+		return m;
+
+	}
+
+   /*
+	* @return Returns the total amount of registered groceries in the simulation so far
+	*/
+	public int getTotalGroc(){
+		int m = 0;
+		for(int i = 0; i<this.doneCustomers.size();i++){//groceries from done customers
+			m += this.doneCustomers.get(i).getGroceriesRegistered();
+		}
+		for(int i = 0; i < this.s.getRegisterArray().size();i++){//groceries from not done customers
+			for(int j = 0; j < this.s.getRegisterArray().get(i).getQueueLength();j++){
+				m += this.s.getRegisterArray().get(i).getCustomer(j).getGroceriesRegistered();
+			}
+		}
+		return m;
+	}
+	
+   /*
+    * (non-Javadoc)
+    * @see java.lang.Object#toString()
+    */
+    public String toString() {
+ 	ArrayList<Register> r = this.s.getRegisterArray();
+    	String register = "", checkOpen = null,queue = "", stats = null;
+    	String groceries = "";
+    	int customers = 0, totGroc = 0, maxWaitTime = 0, avgWaitTime = 0;
+    	for(int i = 0; i<r.size();i++){
+    		queue = ""; groceries = "  ";
+    		if(r.get(i).isOpen()) checkOpen = " "; else checkOpen = "X";
+    		if(!r.get(i).isEmpty())
+    			if(r.get(i).getCustomer(0).getGroceries() < 10){
+    				groceries = " ";
+    				groceries += Integer.toString(r.get(i).getCustomer(0).getGroceries());
+    			}
+    			else{
+    				groceries = Integer.toString(r.get(i).getCustomer(0).getGroceries());
+    			}
+    		
+    		for(int j = 0;j<r.get(i).getQueueLength();j++){
+    			queue += "@";
+    		}
+    		register += (checkOpen + " " + "[" + groceries + "]" + queue + "\n");
+    	}
+    	customers = this.doneCustomers.size();
+    	totGroc = this.getTotalGroc();
+    	maxWaitTime = this.getMaxWaitTime();
+    	avgWaitTime = this.getAverageWaitTime();
+    	stats = ("Number of customers served: " + customers + "\n"
+    			+"Total number of groceries registered: " + totGroc + "\n"
+    			+"Max wait-time: " + maxWaitTime + "\n"
+    			+"Average wait-time: " + avgWaitTime + "\n"
+    			+"Average queue length " + this.s.getAverageQueueLength());
+    	
+        return  (register + "\n" + stats + "\r");
+    }
+
+}
